@@ -1,0 +1,248 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,300,800,600" rel="stylesheet" type="text/css">
+        <link href="lib/font-awesome/css/font-awesome.css" rel="stylesheet" type="text/css">
+
+        <style>
+            html, body {
+                font-family: 'Open Sans',Arial,sans-serif;
+                min-width: 200px;
+                max-height: 250px;
+            }
+
+            .middle h2 {
+                display: inline-block;
+                vertical-align: middle;
+                margin-left: 5px;
+            }
+
+            #currentSong .cover {
+                max-width: 150px;
+                max-height: 120px;
+            }
+
+            #currentSong .artist {
+                -webkit-margin-after: 0;
+            }
+
+            #currentSong .title {
+                -webkit-margin-before: 0;
+            }
+
+            .container {
+              display: grid;
+              grid-template-columns: 100%;
+              grid-template-rows: auto auto;
+              align-items: start;
+              text-align: center;
+            }
+
+            .container .header {
+              grid-row-start: 1;
+              grid-row-end: 2;
+              display: flex;
+              align-items: center;
+              justify-content: space-around;
+            }
+
+            .controls {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+            }
+
+            .controls .play-pause .fa {
+              color: #d40025;
+              font-size: 36px;
+              cursor: pointer;
+            }
+
+            .controls .play-pause .fa-circle-o-notch {
+              font-size: 32px;
+              margin-bottom: 4px;
+            }
+
+            .container .middle {
+                grid-row-start: 2;
+                grid-row-end: 3;
+                height: 250px;
+            }
+
+            .header .left {
+              width: 32px;
+            }
+
+            .header .fa {
+                font-size: 28px;
+            }
+
+            .header .fa.fa-bars {
+              font-size: 20px;
+            }
+
+            .middle .current-radio {
+              margin-top: 20px;
+            }
+
+            .radio-name {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+
+            .radio-name .logo {
+              width: 50px;
+            }
+
+            .radio-name .title {
+              -webkit-margin-before: 0;
+              -webkit-margin-after: 0;
+            }
+
+            h2 {
+              -webkit-margin-after: 0;
+            }
+
+            #volumeLabel {
+                font-size: 14px;
+                min-width: 20px;
+                text-align: center;
+                margin: 0 5px;
+            }
+
+            .volume {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                width: 80px;
+            }
+
+            .volume .fa {
+              cursor: pointer;
+            }
+
+            .volume .fa-volume-down {
+              margin-left: 8px;
+            }
+
+            .radio-selector {
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              cursor: pointer;
+            }
+
+            .radio-selector .logo {
+              max-width: 70px;
+            }
+
+            .radio-selector .fa-caret-down {
+              font-size: 24px;
+              margin-top: -5px;
+            }
+
+            .list-radio {
+              margin: 0;
+              padding: 0;
+              list-type: none;
+              overflow-y: auto;
+              max-height: 250px;
+            }
+
+            .list-radio li {
+              display: flex;
+              padding: 10px 5px;
+            }
+
+            .list-radio li:hover {
+              background-color: lightgray;
+              cursor: pointer;
+            }
+
+            .list-radio .logo {
+              max-width: 32px;
+              max-height: 32px;
+              margin-right: 10px;
+            }
+
+            .list-radio li .info {
+              text-align: left;
+              font-size: 12px;
+            }
+
+            .list-radio li .info h3, .list-radio li .info p {
+              -webkit-margin-before: 0;
+              -webkit-margin-after: 0;
+            }
+
+        </style>
+    </head>
+    <body>
+        <div id="loading">
+          <i class="fa fa-circle-o-notch fa-spin fa-3x fa-fw"></i>
+        </div>
+
+        <div id="m-radio" class="container" data-bind="visible: currentRadio" style="display: none;">
+            <div class="header">
+                <div class="radio-selector" data-bind="click: toggleWebradioList">
+                    <img class="logo" data-bind="attr: {src: currentRadio().logo}" />
+                    <i class="fa fa-caret-down"></i>
+                </div>
+
+                <div class="controls">
+                  <div class="play-pause">
+                    <i class="fa fa-circle-o-notch fa-spin fa-fw"
+                      data-bind="visible: tryingToPlay"></i>
+                    <i class="fa fa-play-circle"
+                      data-bind="visible: playerPaused && !tryingToPlay, click: playRadio"></i>
+                    <i class="fa fa-pause-circle"
+                      data-bind="visible: !playerPaused && !tryingToPlay, click: pauseRadio"></i>
+                  </div>
+                  <div class="volume">
+                      <i class="fa fa-volume-down"
+                        data-bind="click: volumeDown()"></i>
+                      <span id="volumeLabel">{{ playerVolume() }}</span>
+                      <i class="fa fa-volume-up"
+                        data-bind="click: volumeUp()"></i>
+                  </div>
+                </div>
+            </div>
+
+            <div class="middle">
+              <!-- ko if: currentRadio -->
+              <div class="current-radio"
+                data-bind="visible: !showWebradioList">
+                <div class="radio-name">
+                  <h3 class="title">{{ currentRadio().title }}</h3>
+                </div>
+                <div id="currentSong" data-bind="if: currentSong">
+                    <h3 class="artist">{{ currentSong().artist }}</h3>
+                    <p class="title">{{ currentSong().title }}</p>
+                    <img class="cover"
+                      data-bind="{visible: currentSong().cover, attr: {src: currentSong().cover }}" />
+                </div>
+              </div>
+              <!-- /ko -->
+
+              <div data-bind="visible: showWebradioList">
+                <ul class="list-radio" data-bind="foreach: webradios">
+                  <li data-bind="click: => $parent.selectWebradio($data)">
+                    <img class="logo" data-bind="attr: {src: logo}" />
+                    <div class="info">
+                      <h3>{{ title }}</h3>
+                      <p>{{ currentSong().artist }}</p>
+                      <p>{{ currentSong().title }}</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+        </div>
+
+        <script src="popup.js"></script>
+    </body>
+</html>
