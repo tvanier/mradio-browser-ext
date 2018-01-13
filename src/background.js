@@ -2,6 +2,10 @@
 const radioPlayer = document.querySelector('#radioPlayer');
 radioPlayer.volume = 0.1;
 
+radioPlayer.addEventListener('error', (event) => {
+  console.log('audio error', event);
+});
+
 let refreshIntervalId;
 
 chrome.browserAction.setBadgeBackgroundColor({ color: "#d40025" });
@@ -180,55 +184,3 @@ MRadio.fetchWebRadios();
 window.ko = ko;
 window.MRadio = MRadio;
 
-/*
-function load_prog()
-{
-	var ts = new Date().getTime();
-
-	$.ajax({
-			cache: "false",
-			type: "GET",
-			url: '/winradio/live.xml?_='+ts,
-			dataType: 'xml',
-			success: function(xml, textStatus, XMLHttpRequest){
-
-        $(xml).find('station').each(function(){
-
-          var $station = $(this);
-          var station_id = $station.attr('id');
-
-  				var artist = $station.find('morceau:eq(0)').find('chanteur').text();
-  				var title =	$station.find('morceau:eq(0)').find('chanson').text();
-  				$('.playlist-'+station_id).html('' + artist + ' - ' + title);
-  				$('.playlist-'+station_id+'-artist').html(artist);
-  				$('.playlist-'+station_id+'-title').html(title);
-
-  				var cover = $station.find('morceau:eq(0)').find('pochette').text();
-  				var cover = cover.replace(/^\s+|\s+$/g,'');
-  				if(cover.match(/covers\.eg\-ad/g))
-  				{
-  					var filename = cover.split('/').pop();
-            var cover = cover.replace(filename, '100x100_'+filename);
-          }
-
-  				if( (typeof( cover ) != 'undefined') && (cover != '') )
-  				{
-  					var cover = '<img src="' + cover +'" alt=""/>';
-  				}
-  				else
-  				{
-  					var cover = '<img src="/media/pochette.jpg" alt=""/>';
-  				}
-  				if(station_id == 0)
-  				{
-  					$('.current-cover').html(cover);
-  				}
-  				$('.playlist-'+station_id+'-cover').html(cover);
-
-
-        })
-
-			}
-	});
-}
-*/

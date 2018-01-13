@@ -1,0 +1,26 @@
+{
+  "name": "mradio-browser-ext",
+  "version": "0.0.1-0",
+  "description": "A browser extension to listen M Radio",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "package": "grunt crx"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tvanier/mradio-browser-ext.git"
+  },
+  "author": "Thomas Vanier <thomas.vanier@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tvanier/mradio-browser-ext/issues"
+  },
+  "homepage": "https://github.com/tvanier/mradio-browser-ext#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "grunt": "^1.0.1",
+    "grunt-crx": "^1.0.5"
+  }
+}
