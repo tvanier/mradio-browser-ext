@@ -1,6 +1,6 @@
 {
   "name": "mradio-browser-ext",
-  "version": "0.0.1-0",
+  "version": "0.0.2",
   "description": "A browser extension to listen M Radio",
   "directories": {
     "doc": "doc"
