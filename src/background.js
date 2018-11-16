@@ -1,3 +1,10 @@
+// extension background page (invisible)
+// it owns the <audio> element to play radio streams
+// exposes a global MRadio object, with these properties
+// - stations
+// - setCurrentStation
+// - fetchLiveProgram
+// - volumeUp / volumeDown
 
 const radioPlayer = document.querySelector('#radioPlayer');
 radioPlayer.volume = 0.1;
@@ -6,79 +13,70 @@ radioPlayer.addEventListener('error', (event) => {
   console.log('audio error', event);
 });
 
+radioPlayer.addEventListener('pause', () => {
+  chrome.browserAction.setBadgeText({ text: '' });
+});
+
+radioPlayer.addEventListener('stalled', () => {
+  chrome.browserAction.setBadgeText({ text: '' });
+});
+
+radioPlayer.addEventListener('playing', () => {
+  chrome.browserAction.setBadgeText({ text: '▶︎' });
+});
+
 let refreshIntervalId;
 
 chrome.browserAction.setBadgeBackgroundColor({ color: "#d40025" });
 
 const MRadio = {
-  webradios: ko.observableArray(),
-  tryingToPlay: ko.observable(),
-  playerPaused: ko.observable(true),
-  playerVolume: ko.observable(radioPlayer.volume),
-  currentRadio: ko.observable(),
+  stations: {}, // key is stationId
+  currentStation: null,
 
-  showWebradioList: ko.observable(),
-
-  toggleWebradioList() {
-    MRadio.showWebradioList(!MRadio.showWebradioList());
+  setCurrentStation(stationId) {
+    MRadio.currentStation = MRadio.stations[stationId];
   },
 
-  selectWebradio(webradio) {
-    MRadio.currentRadio(webradio);
-    MRadio.showWebradioList(false);
+  playerPaused() {
+    return radioPlayer.paused;
+  },
 
-    if (!MRadio.playerPaused()) {
-      MRadio.pauseRadio();
-      MRadio.playRadio();
+  async playRadio() {
+    const station = MRadio.currentStation;
+    console.log('playRadio', station);
+    radioPlayer.src = station.streamUrl;
+
+    await radioPlayer.play();
+
+    if (!refreshIntervalId) {
+      refreshIntervalId = setInterval(MRadio.fetchLiveProgram, 20000);
     }
-  },
-
-  playRadio() {
-    const radio = MRadio.currentRadio();
-    console.log('playRadio', radio);
-    radioPlayer.src = radio.streamUrl;
-    MRadio.tryingToPlay(true);
-
-    return radioPlayer.play()
-      .then(() => {
-        MRadio.tryingToPlay(false);
-        MRadio.playerPaused(false);
-        chrome.browserAction.setBadgeText({ text: '▶︎' });
-
-        if (!refreshIntervalId) {
-          refreshIntervalId = setInterval(MRadio.fetchLiveProgram, 20000);
-        }
-      })
-      .catch((error) => {
-        MRadio.tryingToPlay(false);
-        console.log('play error', error);
-      })
   },
 
   pauseRadio() {
     radioPlayer.pause();
-    MRadio.playerPaused(true);
-    radioPlayer.src = '';
-    chrome.browserAction.setBadgeText({ text: '' });
+    // radioPlayer.src = '';
   },
 
   volumeDown(dec = 5) {
     const volume = Math.floor(radioPlayer.volume * 100);
     if (volume > 0) {
-      MRadio.setVolume((volume - dec) / 100);
+      return MRadio.setVolume((volume - dec) / 100);
     }
+    return volume;
   },
 
   volumeUp(inc = 5) {
     const volume = Math.floor(radioPlayer.volume * 100);
     if (volume < 100) {
-      MRadio.setVolume((volume + inc) / 100);
+      return MRadio.setVolume((volume + inc) / 100);
     }
+    return volume;
   },
 
   setVolume(volume) {
     radioPlayer.volume = volume;
-    MRadio.playerVolume(Math.floor(volume * 100));
+    return Math.floor(volume * 100);
   },
 
   async fetchLiveProgram() {
@@ -88,35 +86,35 @@ const MRadio = {
     const parser = new DOMParser();
     const doc = parser.parseFromString(xml, "application/xml");
 
-    const stations = doc.querySelectorAll('prog station');
-    stations.forEach((station) => {
-      const morceau1 = station.querySelector('morceau[id="1"]');
-
-      const song = {
-        artist: morceau1.querySelector('chanteur').textContent,
-        title: morceau1.querySelector('chanson').textContent,
-        cover: morceau1.querySelector('pochette').textContent
-      };
-
-      MRadio.webradios().forEach((webradio) => {
-        if (webradio.stationId == station.id) {
-          webradio.currentSong(song);
+    const stationElems = doc.querySelectorAll('prog station');
+    const stations = [];
+    stationElems.forEach((stationElem) => {
+      const morceau1 = stationElem.querySelector('morceau[id="1"]');
+      const station = {
+        stationId: stationElem.id,
+        currentSong: {
+          artist: morceau1.querySelector('chanteur').textContent,
+          title: morceau1.querySelector('chanson').textContent,
+          cover: morceau1.querySelector('pochette').textContent
         }
-      });
+      }
 
-      if (MRadio.currentRadio() && station.id == MRadio.currentRadio().stationId) {
+      if (MRadio.currentStation && station.id == MRadio.currentStation.stationId) {
         let title;
         if (typeof song.artist !== 'undefined') {
           title = song.artist + ' - ';
         }
         title += song.title + ' - ';
-        title += MRadio.currentRadio().title;
+        title += MRadio.currentStation.title;
         chrome.browserAction.setTitle({ title });
       }
+
+      stations.push(station);
     });
+    return stations;
   },
 
-  async fetchWebRadios() {
+  async fetchStations() {
     const response = await fetch('http://mradio.fr/radio/webradio');
     const html = await response.text();
 
@@ -125,62 +123,59 @@ const MRadio = {
 
     const carousel = doc.querySelector('.webradios .carousel');
     const radioItems = carousel.querySelectorAll('li');
-    const radioPromises = [];
-
+    const stationPromises = [];
 
     radioItems.forEach((radioItem) => {
       const radioLink = radioItem.querySelector('a');
-      const webradio = {
+      const station = {
         href: radioLink.href,
-        id: radioLink.id,
-        currentSong: ko.observable()
+        id: radioLink.id
       };
 
       const radioMore = radioItem.querySelector('.more p');
       radioMore.classList.forEach((clazz) => {
         const match = /playlist-(\d+)/i.exec(clazz);
         if (match) {
-          webradio.stationId = parseInt(match[1], 10);
+          station.stationId = parseInt(match[1], 10);
         }
       });
 
       const radioImg = radioLink.querySelector('img');
       if (radioImg) {
-        webradio.title = radioImg.title;
-        webradio.logo = radioImg.dataset.src || radioImg.src;
+        station.title = radioImg.title;
+        station.logo = radioImg.dataset.src || radioImg.src;
       }
 
-      MRadio.webradios.push(webradio);
-      console.log('webradio', webradio);
+      MRadio.stations[station.stationId] = station;
 
-      if (webradio.href) {
-        const radioPromise = fetch(webradio.href)
+      if (station.href) {
+        const stationPromise = fetch(station.href)
           .then((response) => response.text())
           .then((html) => {
             const match = /mp3:\s*"(http.*mp3)"/.exec(html);
             if (match) {
-              webradio.streamUrl = match[1];
+              station.streamUrl = match[1];
             }
           });
 
-        radioPromises.push(radioPromise);
+        stationPromises.push(stationPromise);
       }
     });
 
-    await Promise.all(radioPromises);
+    await Promise.all(stationPromises);
 
-    if (!MRadio.currentRadio()) {
-      MRadio.currentRadio(MRadio.webradios()[0]);
+    if (!MRadio.currentStation) {
+      MRadio.currentStation = MRadio.stations[0];
     }
+  },
+
+  log(msg) {
+    console.log('MRadio', msg);
   }
 };
 
-MRadio.currentRadio.subscribe(() => { MRadio.fetchLiveProgram() });
-MRadio.currentSong = ko.computed(() => MRadio.currentRadio() && MRadio.currentRadio().currentSong());
-
-MRadio.fetchWebRadios();
+MRadio.fetchStations();
 
 // expose to other extension pages (ex: popup)
-window.ko = ko;
 window.MRadio = MRadio;
 

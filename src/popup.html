@@ -10,7 +10,7 @@
             html, body {
                 font-family: 'Open Sans',Arial,sans-serif;
                 min-width: 200px;
-                min-height: 250px;
+                min-height: 350px;
                 max-height: 250px;
                 height: 100%;
             }
@@ -154,7 +154,7 @@
               margin-top: -5px;
             }
 
-            .list-radio {
+            .list-station {
               margin: 0;
               padding: 0;
               list-type: none;
@@ -162,28 +162,28 @@
               max-height: 250px;
             }
 
-            .list-radio li {
+            .list-station li {
               display: flex;
               padding: 10px 5px;
             }
 
-            .list-radio li:hover {
+            .list-station li:hover {
               background-color: lightgray;
               cursor: pointer;
             }
 
-            .list-radio .logo {
+            .list-station .logo {
               max-width: 32px;
               max-height: 32px;
               margin-right: 10px;
             }
 
-            .list-radio li .info {
+            .list-station li .info {
               text-align: left;
               font-size: 12px;
             }
 
-            .list-radio li .info h3, .list-radio li .info p {
+            .list-station li .info h3, .list-station li .info p {
               -webkit-margin-before: 0;
               -webkit-margin-after: 0;
             }
@@ -195,10 +195,10 @@
           <i class="fa fa-circle-o-notch fa-spin fa-3x fa-fw"></i>
         </div>
 
-        <div id="m-radio" class="container" data-bind="visible: currentRadio" style="display: none;">
+        <div id="popup" class="container" data-bind="visible: currentStation" style="display: none;">
             <div class="header">
-                <div class="radio-selector" data-bind="click: toggleWebradioList">
-                    <img class="logo" data-bind="attr: {src: currentRadio().logo}" />
+                <div class="radio-selector" data-bind="click: toggleStationList">
+                    <img class="logo" data-bind="attr: {src: currentStation().logo}" />
                     <i class="fa fa-caret-down"></i>
                 </div>
 
@@ -222,11 +222,11 @@
             </div>
 
             <div class="middle">
-              <!-- ko if: currentRadio -->
+              <!-- ko if: currentStation -->
               <div class="current-radio"
-                data-bind="visible: !showWebradioList">
+                data-bind="visible: !showStationList">
                 <div class="radio-name">
-                  <h3 class="title">{{ currentRadio().title }}</h3>
+                  <h3 class="title">{{ currentStation().title }}</h3>
                 </div>
                 <div id="currentSong" data-bind="if: currentSong">
                     <h3 class="artist">{{ currentSong().artist }}</h3>
@@ -237,14 +237,16 @@
               </div>
               <!-- /ko -->
 
-              <div data-bind="visible: showWebradioList">
-                <ul class="list-radio" data-bind="foreach: webradios">
-                  <li data-bind="click: => $parent.selectWebradio($data)">
+              <div data-bind="visible: showStationList">
+                <ul class="list-station" data-bind="foreach: stations">
+                  <li data-bind="click: => $parent.selectStation($data)">
                     <img class="logo" data-bind="attr: {src: logo}" />
                     <div class="info">
                       <h3>{{ title }}</h3>
+                      <!-- ko if: currentSong() -->
                       <p>{{ currentSong().artist }}</p>
                       <p>{{ currentSong().title }}</p>
+                      <!-- /ko -->
                     </div>
                   </li>
                 </ul>
@@ -253,6 +255,7 @@
 
         </div>
 
+        <script src="lib/ko.js"></script>
         <script src="popup.js"></script>
     </body>
 </html>
