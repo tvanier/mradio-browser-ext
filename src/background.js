@@ -132,13 +132,18 @@ const MRadio = {
         id: radioLink.id
       };
 
-      const radioMore = radioItem.querySelector('.more p');
-      radioMore.classList.forEach((clazz) => {
-        const match = /playlist-(\d+)/i.exec(clazz);
-        if (match) {
-          station.stationId = parseInt(match[1], 10);
-        }
-      });
+      let match = /^webradio-(\d+)$/.exec(radioLink.id);
+      if (match) {
+        station.stationId = match[1];
+      } else {
+        const radioMore = radioItem.querySelector('.more p');
+        radioMore.classList.forEach((clazz) => {
+          match = /playlist-(\d+)/i.exec(clazz);
+          if (match) {
+            station.stationId = parseInt(match[1], 10);
+          }
+        });
+      }
 
       const radioImg = radioLink.querySelector('img');
       if (radioImg) {
