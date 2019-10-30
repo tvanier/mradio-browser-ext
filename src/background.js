@@ -91,7 +91,7 @@ const MRadio = {
     stationElems.forEach((stationElem) => {
       const morceau1 = stationElem.querySelector('morceau[id="1"]');
       const station = {
-        stationId: stationElem.id,
+        stationId: parseInt(stationElem.id, 10) + 1,
         currentSong: {
           artist: morceau1.querySelector('chanteur').textContent,
           title: morceau1.querySelector('chanson').textContent,
@@ -99,8 +99,9 @@ const MRadio = {
         }
       }
 
-      if (MRadio.currentStation && station.id == MRadio.currentStation.stationId) {
+      if (MRadio.currentStation && station.stationId == MRadio.currentStation.stationId) {
         let title;
+        const song = station.currentSong;
         if (typeof song.artist !== 'undefined') {
           title = song.artist + ' - ';
         }

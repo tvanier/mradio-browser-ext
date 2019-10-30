@@ -82,6 +82,11 @@ const createPopup = (MRadio) => {
     popup.fetchLiveProgram();
   });
 
+  if (!popup.currentStation()) {
+    popup.selectStation(popup.stations()[0])
+  }
+  console.log('currentStation', popup.currentStation())
+
   return popup;
 };
 
