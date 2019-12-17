@@ -17,10 +17,6 @@ radioPlayer.addEventListener('pause', () => {
   chrome.browserAction.setBadgeText({ text: '' });
 });
 
-radioPlayer.addEventListener('stalled', () => {
-  chrome.browserAction.setBadgeText({ text: '' });
-});
-
 radioPlayer.addEventListener('playing', () => {
   chrome.browserAction.setBadgeText({ text: '▶︎' });
 });
@@ -32,6 +28,7 @@ chrome.browserAction.setBadgeBackgroundColor({ color: "#d40025" });
 const MRadio = {
   stations: {}, // key is stationId
   currentStation: null,
+  radioPlayer: radioPlayer,
 
   setCurrentStation(stationId) {
     MRadio.currentStation = MRadio.stations[stationId];
@@ -79,6 +76,24 @@ const MRadio = {
     return Math.floor(volume * 100);
   },
 
+  getStationId(programId) {
+    // view page source of https://mradio.fr/radio/webradio
+    // and search for load_prog
+    // key is program id (in live.xml), value is station id
+    const exceptions = {
+      '21': 12,
+      '22': 22,
+      '23': 23,
+      '25': 24,
+      '26': 27,
+      '27': 26,
+      '168': 29
+    };
+
+    // check for exception, otherwise station id is "program id + 1"
+    return exceptions[programId] || (parseInt(programId, 10) + 1);
+  },
+
   async fetchLiveProgram() {
     const response = await fetch('http://mradio.fr/winradio/live.xml?_=' + Date.now())
     const xml = await response.text();
@@ -91,7 +106,7 @@ const MRadio = {
     stationElems.forEach((stationElem) => {
       const morceau1 = stationElem.querySelector('morceau[id="1"]');
       const station = {
-        stationId: parseInt(stationElem.id, 10) + 1,
+        stationId: MRadio.getStationId(stationElem.id),
         currentSong: {
           artist: morceau1.querySelector('chanteur').textContent,
           title: morceau1.querySelector('chanson').textContent,

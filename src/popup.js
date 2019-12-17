@@ -9,6 +9,16 @@ const createPopup = (MRadio) => {
     showStationList: ko.observable()
   };
 
+  MRadio.radioPlayer.addEventListener('playing', () => {
+    popup.tryingToPlay(false);
+    popup.playerPaused(false);
+  });
+
+  MRadio.radioPlayer.addEventListener('pause', () => {
+    popup.tryingToPlay(false);
+    popup.playerPaused(true);
+  });
+
   popup.stations = ko.observableArray([]);
   Object.keys(MRadio.stations).forEach((stationId) => {
     const station = MRadio.stations[stationId];
@@ -31,11 +41,11 @@ const createPopup = (MRadio) => {
     popup.showStationList(!popup.showStationList());
   };
 
-  popup.selectStation = (station) => {
+  popup.selectStation = (station, autoPlay = true) => {
     popup.currentStation(station);
     popup.showStationList(false);
 
-    if (!popup.playerPaused()) {
+    if (autoPlay) {
       popup.pauseRadio();
       popup.playRadio();
     }
@@ -62,12 +72,14 @@ const createPopup = (MRadio) => {
   popup.volumeUp = () => popup.playerVolume(MRadio.volumeUp());
 
   popup.fetchLiveProgram = async () => {
-    const liveStations = await MRadio.fetchLiveProgram();
+    const programs = await MRadio.fetchLiveProgram();
 
-    liveStations.forEach((liveStation) => {
-      const station = popup.stations().find((s) => s.stationId == liveStation.stationId);
-      if (station) {
-        station.currentSong(liveStation.currentSong);
+    popup.stations().forEach((station) => {
+      const program = programs.find((p) => p.stationId == station.stationId);
+      if (program) {
+        station.currentSong(program.currentSong);
+      } else {
+        console.log('no program for', station)
       }
     })
   };
@@ -78,12 +90,10 @@ const createPopup = (MRadio) => {
 
   popup.currentStation.subscribe((currentStation) => {
     MRadio.setCurrentStation(currentStation.stationId);
-    MRadio.playRadio();
-    popup.fetchLiveProgram();
   });
 
   if (!popup.currentStation()) {
-    popup.selectStation(popup.stations()[0])
+    popup.selectStation(popup.stations()[0], false)
   }
   console.log('currentStation', popup.currentStation())
 
@@ -105,10 +115,6 @@ chrome.runtime.getBackgroundPage((bgWindow) => {
 
     ko.applyBindings(popup, document.getElementById('popup'));
     console.log(Date.now(), 'applied bindings');
-
-    console.log(Date.now(), 'start fetch program');
-    MRadio.fetchLiveProgram();
-    console.log(Date.now(), 'got program');
 
     popup.fetchLiveProgram();
     setInterval(popup.fetchLiveProgram, 20000);
