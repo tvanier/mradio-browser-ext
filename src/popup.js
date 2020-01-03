@@ -20,22 +20,29 @@ const createPopup = (MRadio) => {
   });
 
   popup.stations = ko.observableArray([]);
-  Object.keys(MRadio.stations).forEach((stationId) => {
-    const station = MRadio.stations[stationId];
-    const observableStation = {
-      stationId: station.stationId,
-      title: station.title,
-      logo: station.logo,
-      streamUrl: station.streamUrl,
-      currentSong: ko.observable()
-    };
-    popup.stations.push(observableStation);
-    if (MRadio.currentStation && MRadio.currentStation.stationId === observableStation.stationId) {
-      popup.currentStation(observableStation);
-    }
-  });
 
-  console.log('stations', popup.stations());
+  popup.populateStations = () => {
+    popup.stations.removeAll();
+
+    Object.keys(MRadio.stations).forEach((stationId) => {
+      const station = MRadio.stations[stationId];
+      const observableStation = {
+        stationId: station.stationId,
+        title: station.title,
+        logo: station.logo,
+        streamUrl: station.streamUrl,
+        currentSong: ko.observable()
+      };
+      popup.stations.push(observableStation);
+      if (MRadio.currentStation && MRadio.currentStation.stationId === observableStation.stationId) {
+        popup.currentStation(observableStation);
+      }
+    });
+
+    console.log('stations', popup.stations());
+  };
+
+  popup.populateStations();
 
   popup.toggleStationList = () => {
     popup.showStationList(!popup.showStationList());
@@ -71,17 +78,25 @@ const createPopup = (MRadio) => {
   popup.volumeDown = () => popup.playerVolume(MRadio.volumeDown());
   popup.volumeUp = () => popup.playerVolume(MRadio.volumeUp());
 
-  popup.fetchLiveProgram = async () => {
-    const programs = await MRadio.fetchLiveProgram();
+  popup.fetchLivePrograms = async () => {
+    const programs = await MRadio.fetchLivePrograms();
 
     popup.stations().forEach((station) => {
-      const program = programs.find((p) => p.stationId == station.stationId);
+      const programId = MRadio.getStationProgramId(station.stationId);
+      const program = programs[programId];
       if (program) {
         station.currentSong(program.currentSong);
+        station.currentSong.valueHasMutated();
       } else {
         console.log('no program for', station)
       }
     })
+  };
+
+  popup.refreshStations = async () => {
+    await MRadio.fetchStations();
+    popup.populateStations();
+    popup.fetchLivePrograms();
   };
 
   popup.currentSong = ko.computed(() => {
@@ -116,7 +131,7 @@ chrome.runtime.getBackgroundPage((bgWindow) => {
     ko.applyBindings(popup, document.getElementById('popup'));
     console.log(Date.now(), 'applied bindings');
 
-    popup.fetchLiveProgram();
-    setInterval(popup.fetchLiveProgram, 20000);
+    popup.fetchLivePrograms();
+    setInterval(popup.fetchLivePrograms, 20000);
   }, 100);
 });

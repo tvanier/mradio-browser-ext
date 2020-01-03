@@ -3,7 +3,7 @@
 // exposes a global MRadio object, with these properties
 // - stations
 // - setCurrentStation
-// - fetchLiveProgram
+// - fetchLivePrograms
 // - volumeUp / volumeDown
 
 const radioPlayer = document.querySelector('#radioPlayer');
@@ -24,6 +24,25 @@ radioPlayer.addEventListener('playing', () => {
 let refreshIntervalId;
 
 chrome.browserAction.setBadgeBackgroundColor({ color: "#d40025" });
+
+// view page source of https://mradio.fr/radio/webradio
+// and search for load_prog
+// key is station id, value is program id (in live.xml)
+let stationProgramMap = {}
+
+function mapPrograms(html = '') {
+  stationProgramMap = {}
+
+  // load_prog('7', 8);
+  const re = /load_prog\('(\d+)', (\d+)\);/ig;
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    const programId = match[1];
+    const stationId = match[2];
+    stationProgramMap[stationId] = programId
+  }
+  console.log('stationProgramMap', stationProgramMap);
+}
 
 const MRadio = {
   stations: {}, // key is stationId
@@ -46,7 +65,7 @@ const MRadio = {
     await radioPlayer.play();
 
     if (!refreshIntervalId) {
-      refreshIntervalId = setInterval(MRadio.fetchLiveProgram, 20000);
+      refreshIntervalId = setInterval(MRadio.fetchLivePrograms, 20000);
     }
   },
 
@@ -76,25 +95,16 @@ const MRadio = {
     return Math.floor(volume * 100);
   },
 
-  getStationId(programId) {
-    // view page source of https://mradio.fr/radio/webradio
-    // and search for load_prog
-    // key is program id (in live.xml), value is station id
-    const exceptions = {
-      '21': 12,
-      '22': 22,
-      '23': 23,
-      '25': 24,
-      '26': 27,
-      '27': 26,
-      '168': 29
-    };
-
-    // check for exception, otherwise station id is "program id + 1"
-    return exceptions[programId] || (parseInt(programId, 10) + 1);
+  getStationProgramId(stationId) {
+    const stationIdInt = parseInt(stationId, 10)
+    // check in map, otherwise program id is "station id - 1"
+    if (stationIdInt in stationProgramMap) {
+      return stationProgramMap[stationIdInt];
+    }
+    return Math.max(0, stationIdInt - 1);
   },
 
-  async fetchLiveProgram() {
+  async fetchLivePrograms() {
     const response = await fetch('http://mradio.fr/winradio/live.xml?_=' + Date.now())
     const xml = await response.text();
 
@@ -102,35 +112,39 @@ const MRadio = {
     const doc = parser.parseFromString(xml, "application/xml");
 
     const stationElems = doc.querySelectorAll('prog station');
-    const stations = [];
+    const programs = {}
     stationElems.forEach((stationElem) => {
+      const programId = stationElem.id;
       const morceau1 = stationElem.querySelector('morceau[id="1"]');
-      const station = {
-        stationId: MRadio.getStationId(stationElem.id),
+      programs[programId] = {
+        programId,
         currentSong: {
           artist: morceau1.querySelector('chanteur').textContent,
           title: morceau1.querySelector('chanson').textContent,
           cover: morceau1.querySelector('pochette').textContent
         }
       }
-
-      if (MRadio.currentStation && station.stationId == MRadio.currentStation.stationId) {
-        let title;
-        const song = station.currentSong;
-        if (typeof song.artist !== 'undefined') {
-          title = song.artist + ' - ';
-        }
-        title += song.title + ' - ';
-        title += MRadio.currentStation.title;
-        chrome.browserAction.setTitle({ title });
-      }
-
-      stations.push(station);
     });
-    return stations;
+
+    if (MRadio.currentStation) {
+      const programId = MRadio.getStationProgramId(MRadio.currentStation.stationId);
+      const program = programs[programId];
+      let title;
+      const song = program.currentSong;
+      if (typeof song.artist !== 'undefined') {
+        title = song.artist + ' - ';
+      }
+      title += song.title + ' - ';
+      title += MRadio.currentStation.title;
+      chrome.browserAction.setTitle({ title });
+    }
+
+    return programs;
   },
 
   async fetchStations() {
+    MRadio.stations = [];
+
     const response = await fetch('http://mradio.fr/radio/webradio');
     const html = await response.text();
 
@@ -188,6 +202,8 @@ const MRadio = {
     if (!MRadio.currentStation) {
       MRadio.currentStation = MRadio.stations[0];
     }
+
+    mapPrograms(html)
   },
 
   log(msg) {
