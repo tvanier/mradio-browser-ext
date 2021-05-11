@@ -20,7 +20,7 @@
   "homepage": "https://github.com/tvanier/mradio-browser-ext#readme",
   "dependencies": {},
   "devDependencies": {
-    "grunt": "^1.0.1",
-    "grunt-crx": "^1.0.5"
+    "grunt": "^1.4.0",
+    "grunt-crx": "^2.0.0"
   }
 }
