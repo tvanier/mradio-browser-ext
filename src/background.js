@@ -97,6 +97,10 @@ const MRadio = {
 
   getStationProgramId(stationId) {
     const stationIdInt = parseInt(stationId, 10)
+    // if (stationIdInt === 12) {
+    //   // load_prog('21', 12) should be load_prog('11', 12);
+    //   return '11';
+    // }
     // check in map, otherwise program id is "station id - 1"
     if (stationIdInt in stationProgramMap) {
       return stationProgramMap[stationIdInt];
