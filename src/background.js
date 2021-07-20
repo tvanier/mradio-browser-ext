@@ -44,9 +44,12 @@ function mapPrograms(html = '') {
   console.log('stationProgramMap', stationProgramMap);
 }
 
+let fetchProgramsIntervalId;
+
 const MRadio = {
   stations: {}, // key is stationId
   currentStation: null,
+  programs: ko.observable({}),
   radioPlayer: radioPlayer,
 
   setCurrentStation(stationId) {
@@ -63,15 +66,10 @@ const MRadio = {
     radioPlayer.src = station.streamUrl;
 
     await radioPlayer.play();
-
-    if (!refreshIntervalId) {
-      refreshIntervalId = setInterval(MRadio.fetchLivePrograms, 20000);
-    }
   },
 
   pauseRadio() {
     radioPlayer.pause();
-    // radioPlayer.src = '';
   },
 
   volumeDown(dec = 5) {
@@ -97,10 +95,6 @@ const MRadio = {
 
   getStationProgramId(stationId) {
     const stationIdInt = parseInt(stationId, 10)
-    // if (stationIdInt === 12) {
-    //   // load_prog('21', 12) should be load_prog('11', 12);
-    //   return '11';
-    // }
     // check in map, otherwise program id is "station id - 1"
     if (stationIdInt in stationProgramMap) {
       return stationProgramMap[stationIdInt];
@@ -108,27 +102,48 @@ const MRadio = {
     return Math.max(0, stationIdInt - 1);
   },
 
-  async fetchLivePrograms() {
-    const response = await fetch('http://mradio.fr/winradio/live.xml?_=' + Date.now())
-    const xml = await response.text();
+  async startFetchLivePrograms({ station, interval = 20000 } = {}) {
+    clearInterval(fetchProgramsIntervalId);
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, "application/xml");
+    const programIds = station ? [stationProgramMap[station.stationId]] : Object.values(stationProgramMap);
+    fetchProgramsIntervalId = setInterval(() => MRadio.fetchLivePrograms(programIds), interval)
 
-    const stationElems = doc.querySelectorAll('prog station');
-    const programs = {}
-    stationElems.forEach((stationElem) => {
-      const programId = stationElem.id;
-      const morceau1 = stationElem.querySelector('morceau[id="1"]');
-      programs[programId] = {
-        programId,
-        currentSong: {
-          artist: morceau1.querySelector('chanteur').textContent,
-          title: morceau1.querySelector('chanson').textContent,
-          cover: morceau1.querySelector('pochette').textContent
+    const programs = await this.fetchLivePrograms(programIds);
+    return programs;
+  },
+
+  stopFetchLivePrograms() {
+    clearInterval(fetchProgramsIntervalId);
+    fetchProgramsIntervalId = null;
+  },
+
+  async fetchLivePrograms(programIds) {
+    const programs = MRadio.programs();
+
+    for (let i = 0; i < programIds.length; i++) {
+      const programId = programIds[i];
+      try {
+        const response =
+          await fetch(`https://mradio.fr/winradio/prog${programId}.xml?_=${Date.now()}`);
+
+        const xml = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, "application/xml");
+
+        const morceau1 = doc.querySelector('morceau[id="1"]');
+        programs[programId] = {
+          programId,
+          currentSong: {
+            artist: morceau1.querySelector('chanteur').textContent,
+            title: morceau1.querySelector('chanson').textContent,
+            cover: morceau1.querySelector('pochette').textContent
+          }
         }
+      } catch (error) {
+        console.log('cannot fetch program for station', station);
       }
-    });
+    }
 
     if (MRadio.currentStation) {
       const programId = MRadio.getStationProgramId(MRadio.currentStation.stationId);
@@ -143,6 +158,7 @@ const MRadio = {
       chrome.browserAction.setTitle({ title });
     }
 
+    MRadio.programs.valueHasMutated();
     return programs;
   },
 
@@ -208,6 +224,15 @@ const MRadio = {
     }
 
     mapPrograms(html)
+  },
+
+  onVisible() {
+
+  },
+
+  onHidden() {
+    console.log('onHidden');
+    MRadio.stopFetchLivePrograms();
   },
 
   log(msg) {

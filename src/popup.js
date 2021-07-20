@@ -46,11 +46,15 @@ const createPopup = (MRadio) => {
 
   popup.toggleStationList = () => {
     popup.showStationList(!popup.showStationList());
+    if (popup.showStationList()) {
+      MRadio.startFetchLivePrograms();
+    }
   };
 
   popup.selectStation = (station, autoPlay = true) => {
     popup.currentStation(station);
     popup.showStationList(false);
+    MRadio.startFetchLivePrograms({ station });
 
     if (autoPlay) {
       popup.pauseRadio();
@@ -78,9 +82,10 @@ const createPopup = (MRadio) => {
   popup.volumeDown = () => popup.playerVolume(MRadio.volumeDown());
   popup.volumeUp = () => popup.playerVolume(MRadio.volumeUp());
 
-  popup.fetchLivePrograms = async () => {
-    const programs = await MRadio.fetchLivePrograms();
+  // popup.fetchLivePrograms = async () => {
+  //   const programs = await MRadio.fetchLivePrograms();
 
+  MRadio.programs.subscribe((programs) => {
     popup.stations().forEach((station) => {
       const programId = MRadio.getStationProgramId(station.stationId);
       const program = programs[programId];
@@ -91,7 +96,7 @@ const createPopup = (MRadio) => {
         console.log('no program for', station)
       }
     })
-  };
+  });
 
   popup.refreshStations = async () => {
     await MRadio.fetchStations();
@@ -124,14 +129,13 @@ chrome.runtime.getBackgroundPage((bgWindow) => {
   const popup = createPopup(MRadio);
   window.popup = popup; // debugging
 
+  window.onclose = () => MRadio.onHidden();
+
   setTimeout(() => {
     const loading = document.getElementById('loading');
     loading.style.display = 'none';
 
     ko.applyBindings(popup, document.getElementById('popup'));
     console.log(Date.now(), 'applied bindings');
-
-    popup.fetchLivePrograms();
-    setInterval(popup.fetchLivePrograms, 20000);
   }, 100);
 });
