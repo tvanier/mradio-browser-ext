@@ -28,20 +28,17 @@ chrome.browserAction.setBadgeBackgroundColor({ color: "#d40025" });
 // view page source of https://mradio.fr/radio/webradio
 // and search for load_prog
 // key is station id, value is program id (in live.xml)
-let stationProgramMap = {}
+const stationProgramMap = {}
 
 function mapPrograms(html = '') {
-  stationProgramMap = {}
-
   // load_prog('7', 8);
-  const re = /load_prog\('(\d+)', (\d+)\);/ig;
+  const re = /load_prog\('(\d+)',\s*(\d+)\s*\);/ig;
   let match;
   while ((match = re.exec(html)) !== null) {
     const programId = match[1];
     const stationId = match[2];
     stationProgramMap[stationId] = programId
   }
-  console.log('stationProgramMap', stationProgramMap);
 }
 
 let fetchProgramsIntervalId;
@@ -102,14 +99,17 @@ const MRadio = {
     return Math.max(0, stationIdInt - 1);
   },
 
-  async startFetchLivePrograms({ station, interval = 20000 } = {}) {
+  startFetchLivePrograms({ station, interval = 20000 } = {}) {
+    console.log('startFetchLivePrograms', { station });
     clearInterval(fetchProgramsIntervalId);
 
-    const programIds = station ? [stationProgramMap[station.stationId]] : Object.values(stationProgramMap);
+    const stationProgramId = station && stationProgramMap[station.stationId];
+    const programIds = stationProgramId || Object.values(stationProgramMap);
     fetchProgramsIntervalId = setInterval(() => MRadio.fetchLivePrograms(programIds), interval)
 
-    const programs = await this.fetchLivePrograms(programIds);
-    return programs;
+    MRadio.programs.valueHasMutated();
+    this.fetchLivePrograms(programIds);
+    return MRadio.programs();
   },
 
   stopFetchLivePrograms() {
@@ -117,7 +117,7 @@ const MRadio = {
     fetchProgramsIntervalId = null;
   },
 
-  async fetchLivePrograms(programIds) {
+  async fetchLivePrograms(programIds = Object.values(stationProgramMap)) {
     const programs = MRadio.programs();
 
     for (let i = 0; i < programIds.length; i++) {
@@ -141,21 +141,23 @@ const MRadio = {
           }
         }
       } catch (error) {
-        console.log('cannot fetch program for station', station);
+        console.log('cannot fetch live programs', error);
       }
     }
 
     if (MRadio.currentStation) {
       const programId = MRadio.getStationProgramId(MRadio.currentStation.stationId);
       const program = programs[programId];
-      let title;
-      const song = program.currentSong;
-      if (typeof song.artist !== 'undefined') {
-        title = song.artist + ' - ';
+      if (program) {
+        let title;
+        const song = program.currentSong;
+        if (typeof song.artist !== 'undefined') {
+          title = song.artist + ' - ';
+        }
+        title += song.title + ' - ';
+        title += MRadio.currentStation.title;
+        chrome.browserAction.setTitle({ title });
       }
-      title += song.title + ' - ';
-      title += MRadio.currentStation.title;
-      chrome.browserAction.setTitle({ title });
     }
 
     MRadio.programs.valueHasMutated();
@@ -165,34 +167,25 @@ const MRadio = {
   async fetchStations() {
     MRadio.stations = [];
 
-    const response = await fetch('http://mradio.fr/radio/webradio');
+    const response = await fetch('https://mradio.fr/radio/webradio');
     const html = await response.text();
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
 
-    const carousel = doc.querySelector('.webradios .carousel');
-    const radioItems = carousel.querySelectorAll('li');
+    const contentMain = doc.querySelector('.content-main');
+    const radioItems = contentMain.querySelectorAll('.card');
     const stationPromises = [];
 
     radioItems.forEach((radioItem) => {
-      const radioLink = radioItem.querySelector('a');
+      const radioLink = radioItem.querySelector('a.item-photo-square');
       const station = {
-        href: radioLink.href,
-        id: radioLink.id
+        href: radioLink.href
       };
 
-      let match = /^webradio-(\d+)$/.exec(radioLink.id);
+      const match = /webradio\/(\d+)\//i.exec(radioLink)
       if (match) {
         station.stationId = match[1];
-      } else {
-        const radioMore = radioItem.querySelector('.more p');
-        radioMore.classList.forEach((clazz) => {
-          match = /playlist-(\d+)/i.exec(clazz);
-          if (match) {
-            station.stationId = parseInt(match[1], 10);
-          }
-        });
       }
 
       const radioImg = radioLink.querySelector('img');
@@ -207,10 +200,13 @@ const MRadio = {
         const stationPromise = fetch(station.href)
           .then((response) => response.text())
           .then((html) => {
-            const match = /mp3:\s*"(http.*mp3)"/.exec(html);
+            const match = /src="(http.*\.mp3.*)"/i.exec(html);
             if (match) {
               station.streamUrl = match[1];
             }
+            console.log('fetched station', station);
+
+            mapPrograms(html);
           });
 
         stationPromises.push(stationPromise);
@@ -218,6 +214,8 @@ const MRadio = {
     });
 
     await Promise.all(stationPromises);
+
+    console.log('stationProgramMap', stationProgramMap);
 
     if (!MRadio.currentStation) {
       MRadio.currentStation = MRadio.stations[0];
@@ -240,7 +238,8 @@ const MRadio = {
   }
 };
 
-MRadio.fetchStations();
+MRadio.fetchStations()
+  .then(() => MRadio.fetchLivePrograms())
 
 // expose to other extension pages (ex: popup)
 window.MRadio = MRadio;
