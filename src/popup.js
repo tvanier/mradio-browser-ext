@@ -107,7 +107,7 @@ const createPopup = (MRadio) => {
   popup.refreshStations = async () => {
     await MRadio.fetchStations();
     popup.populateStations();
-    popup.fetchLivePrograms();
+    MRadio.startFetchLivePrograms();
   };
 
   popup.currentSong = ko.computed(() => {
