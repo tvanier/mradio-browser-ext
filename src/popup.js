@@ -36,6 +36,12 @@ const createPopup = (MRadio) => {
       popup.stations.push(observableStation);
       if (MRadio.currentStation && MRadio.currentStation.stationId === observableStation.stationId) {
         popup.currentStation(observableStation);
+
+        const programId = MRadio.getStationProgramId(station.stationId);
+        const program = MRadio.programs()[programId];
+        if (program) {
+          observableStation.currentSong(program.currentSong);
+        }
       }
     });
 
@@ -113,9 +119,9 @@ const createPopup = (MRadio) => {
   });
 
   if (!popup.currentStation()) {
-    popup.selectStation(popup.stations()[0], false)
+    popup.selectStation(popup.stations()[0], false);
   }
-  console.log('currentStation', popup.currentStation())
+  console.log('currentStation', popup.currentStation());
 
   return popup;
 };
