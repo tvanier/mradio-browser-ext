@@ -85,8 +85,12 @@ const createPopup = (MRadio) => {
     MRadio.pauseRadio();
   };
 
-  popup.volumeDown = () => popup.playerVolume(MRadio.volumeDown());
-  popup.volumeUp = () => popup.playerVolume(MRadio.volumeUp());
+  popup.volumeDown = function () {
+    popup.playerVolume(MRadio.volumeDown());
+  };
+  popup.volumeUp = function() {
+    popup.playerVolume(MRadio.volumeUp());
+  };
 
   // popup.fetchLivePrograms = async () => {
   //   const programs = await MRadio.fetchLivePrograms();

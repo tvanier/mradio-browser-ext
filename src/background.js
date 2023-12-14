@@ -174,11 +174,11 @@ const MRadio = {
     const doc = parser.parseFromString(html, "text/html");
 
     const contentMain = doc.querySelector('.content-main');
-    const radioItems = contentMain.querySelectorAll('.card');
+    const radioItems = contentMain.querySelectorAll('.nav-item');
     const stationPromises = [];
 
     radioItems.forEach((radioItem) => {
-      const radioLink = radioItem.querySelector('a.item-photo-square');
+      const radioLink = radioItem.querySelector('a');
       const station = {
         href: radioLink.href
       };

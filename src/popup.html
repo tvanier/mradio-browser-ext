@@ -207,7 +207,7 @@
       <div id="popup" class="container" data-bind="visible: currentStation" style="display: none;">
         <div class="header">
           <div class="radio-selector" data-bind="click: toggleStationList">
-              <img class="logo" data-bind="attr: {src: currentStation().logo}" />
+              <img class="logo" data-bind="attr: {src: currentStation() ? currentStation().logo : ''}" />
               <i class="fa fa-caret-down"></i>
           </div>
 
