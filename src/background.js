@@ -200,7 +200,7 @@ const MRadio = {
         const stationPromise = fetch(station.href)
           .then((response) => response.text())
           .then((html) => {
-            const match = /src="(http.*\.mp3.*)"/i.exec(html);
+            const match = /data-src="(http.*\.(aac|mp3).*)"/i.exec(html);
             if (match) {
               station.streamUrl = match[1];
             }
